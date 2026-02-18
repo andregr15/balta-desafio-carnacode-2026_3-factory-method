@@ -2,123 +2,211 @@
 // PROBLEMA: Uma aplicação de e-commerce precisa enviar notificações por diferentes canais
 // (Email, SMS, Push, WhatsApp) dependendo da preferência do cliente e tipo de notificação
 // O código atual viola o Open/Closed Principle ao usar condicionais para criar notificações
-
-using System;
-
 namespace DesignPatternChallenge
 {
     // Contexto: Sistema de notificações que envia mensagens para clientes
     // Cada tipo de notificação tem requisitos e formatação diferentes
-    
-    public class NotificationManager
+
+    public interface INotification
     {
-        public void SendOrderConfirmation(string recipient, string orderNumber, string notificationType)
+        void Send();
+    }
+
+    public abstract class OrderConfirmationNotificationCreator
+    {
+        public abstract INotification CreateNotification(string recipient, string orderNumber);
+
+        public void SendNotification(string recipient, string orderNumber)
         {
-            // Problema: Lógica de criação de notificações acoplada no método
-            // Adicionar novo tipo de notificação requer modificar este código
-            
-            if (notificationType == "email")
-            {
-                var email = new EmailNotification();
-                email.Recipient = recipient;
-                email.Subject = "Confirmação de Pedido";
-                email.Body = $"Seu pedido {orderNumber} foi confirmado!";
-                email.IsHtml = true;
-                email.Send();
-            }
-            else if (notificationType == "sms")
-            {
-                var sms = new SmsNotification();
-                sms.PhoneNumber = recipient;
-                sms.Message = $"Pedido {orderNumber} confirmado!";
-                sms.Send();
-            }
-            else if (notificationType == "push")
-            {
-                var push = new PushNotification();
-                push.DeviceToken = recipient;
-                push.Title = "Pedido Confirmado";
-                push.Message = $"Pedido {orderNumber} confirmado!";
-                push.Badge = 1;
-                push.Send();
-            }
-            else if (notificationType == "whatsapp")
-            {
-                var whatsapp = new WhatsAppNotification();
-                whatsapp.PhoneNumber = recipient;
-                whatsapp.Message = $"✅ Seu pedido {orderNumber} foi confirmado!";
-                whatsapp.UseTemplate = true;
-                whatsapp.Send();
-            }
-            else
-            {
-                throw new ArgumentException($"Tipo de notificação '{notificationType}' não suportado");
-            }
+            var notification = CreateNotification(recipient, orderNumber);
+            notification.Send();
+        }
+    }
+
+    public abstract class ShippingUpdateNotificationCreator
+    {
+        public abstract INotification CreateNotification(string recipient, string trackingCode);
+
+        public void SendNotification(string recipient, string trackingCode)
+        {
+            var notification = CreateNotification(recipient, trackingCode);
+            notification.Send();
+        }
+    }
+
+    public abstract class PaymentReminderNotificationCreator
+    {
+        public abstract INotification CreateNotification(string recipient, decimal amount);
+
+        public void SendNotification(string recipient, decimal amount)
+        {
+            var notification = CreateNotification(recipient, amount);
+            notification.Send();
         }
 
-        public void SendShippingUpdate(string recipient, string trackingCode, string notificationType)
-        {
-            // Problema: Código duplicado - mesma estrutura condicional repetida
-            if (notificationType == "email")
-            {
-                var email = new EmailNotification();
-                email.Recipient = recipient;
-                email.Subject = "Pedido Enviado";
-                email.Body = $"Seu pedido foi enviado! Código de rastreamento: {trackingCode}";
-                email.IsHtml = true;
-                email.Send();
-            }
-            else if (notificationType == "sms")
-            {
-                var sms = new SmsNotification();
-                sms.PhoneNumber = recipient;
-                sms.Message = $"Pedido enviado! Rastreamento: {trackingCode}";
-                sms.Send();
-            }
-            else if (notificationType == "push")
-            {
-                var push = new PushNotification();
-                push.DeviceToken = recipient;
-                push.Title = "Pedido Enviado";
-                push.Message = $"Rastreamento: {trackingCode}";
-                push.Badge = 1;
-                push.Send();
-            }
-            else if (notificationType == "whatsapp")
-            {
-                var whatsapp = new WhatsAppNotification();
-                whatsapp.PhoneNumber = recipient;
-                whatsapp.Message = $"📦 Pedido enviado! Rastreamento: {trackingCode}";
-                whatsapp.UseTemplate = true;
-                whatsapp.Send();
-            }
-        }
+    }
 
-        public void SendPaymentReminder(string recipient, decimal amount, string notificationType)
+    public class EmailOrderConfirmationNotificationCreator : OrderConfirmationNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string orderNumber)
         {
-            // Problema: Cada novo método repete a mesma lógica condicional
-            if (notificationType == "email")
+            return new EmailNotification
             {
-                var email = new EmailNotification();
-                email.Recipient = recipient;
-                email.Subject = "Lembrete de Pagamento";
-                email.Body = $"Você tem um pagamento pendente de R$ {amount:N2}";
-                email.IsHtml = true;
-                email.Send();
-            }
-            else if (notificationType == "sms")
+                Recipient = recipient,
+                Subject = "Confirmação de Pedido",
+                Body = $"Seu pedido {orderNumber} foi confirmado!",
+                IsHtml = true
+            };
+        }
+    }
+
+    public class EmailShippingUpdateNotificationCreator : ShippingUpdateNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string trackingCode)
+        {
+            return new EmailNotification
             {
-                var sms = new SmsNotification();
-                sms.PhoneNumber = recipient;
-                sms.Message = $"Pagamento pendente: R$ {amount:N2}";
-                sms.Send();
-            }
-            // ... mesmo padrão se repete
+                Recipient = recipient,
+                Subject = "Pedido Enviado",
+                Body = $"Seu pedido foi enviado! Código de rastreamento: {trackingCode}",
+                IsHtml = true
+            };
+        }
+    }
+
+    public class EmailPaymentReminderNotificationCreator : PaymentReminderNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, decimal amount)
+        {
+            return new EmailNotification
+            {
+                Recipient = recipient,
+                Subject = "Lembrete de Pagamento",
+                Body = $"Você tem um pagamento pendente de R$ {amount:N2}",
+                IsHtml = true
+            };
+        }
+    }
+
+    public class SmsOrderConfirmationNotificationCreator : OrderConfirmationNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string orderNumber)
+        {
+            return new SmsNotification
+            {
+                PhoneNumber = recipient,
+                Message = $"Pedido {orderNumber} confirmado!",
+            };
+        }
+    }
+
+    public class SmsShippingUpdateNotificationCreator : ShippingUpdateNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string trackingCode)
+        {
+            return new SmsNotification
+            {
+                PhoneNumber = recipient,
+                Message = $"Pedido enviado! Rastreamento: {trackingCode}",
+            };
+        }
+    }
+
+    public class SmsPaymentReminderNotificationCreator : PaymentReminderNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, decimal amount)
+        {
+            return new SmsNotification
+            {
+                PhoneNumber = recipient,
+                Message = $"Pagamento pendente: R$ {amount:N2}",
+            };
+        }
+    }
+
+    public class PushOrderConfirmationNotificationCreator : OrderConfirmationNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string orderNumber)
+        {
+            return new PushNotification
+            {
+                DeviceToken = recipient,
+                Title = "Pedido Confirmado",
+                Message = $"Pedido {orderNumber} confirmado!",
+                Badge = 1
+            };
+        }
+    }
+
+    public class PushShippingUpdateNotificationCreator : ShippingUpdateNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string trackingCode)
+        {
+            return new PushNotification
+            {
+                DeviceToken = recipient,
+                Title = "Pedido Enviado",
+                Message = $"Rastreamento: {trackingCode}",
+                Badge = 1
+            };
+        }
+    }
+
+    public class PushPaymentReminderNotificationCreator : PaymentReminderNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, decimal amount)
+        {
+            return new PushNotification
+            {
+                DeviceToken = recipient,
+                Title = "Lembrete de Pagamento",
+                Message = $"Pagamento pendente: R$ {amount:N2}",
+                Badge = 1
+            };
+        }
+    }
+
+    public class WhatsAppOrderConfirmationNotificationCreator : OrderConfirmationNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string orderNumber)
+        {
+            return new WhatsAppNotification
+            {
+                PhoneNumber = recipient,
+                Message = $"✅ Seu pedido {orderNumber} foi confirmado!",
+                UseTemplate = true
+            };
+        }
+    }
+
+    public class WhatsAppShippingUpdateNotificationCreator : ShippingUpdateNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, string trackingCode)
+        {
+            return new WhatsAppNotification
+            {
+                PhoneNumber = recipient,
+                Message = $"📦 Pedido enviado! Rastreamento: {trackingCode}",
+                UseTemplate = true
+            };
+        }
+    }
+
+    public class WhatsAppPaymentReminderNotificationCreator : PaymentReminderNotificationCreator
+    {
+        public override INotification CreateNotification(string recipient, decimal amount)
+        {
+            return new WhatsAppNotification
+            {
+                PhoneNumber = recipient,
+                Message = $"⚠️ Lembrete: pagamento pendente de R$ {amount:N2}",
+                UseTemplate = true
+            };
         }
     }
 
     // Classes concretas de notificação
-    public class EmailNotification
+    public class EmailNotification : INotification
     {
         public string Recipient { get; set; }
         public string Subject { get; set; }
@@ -133,7 +221,7 @@ namespace DesignPatternChallenge
         }
     }
 
-    public class SmsNotification
+    public class SmsNotification : INotification
     {
         public string PhoneNumber { get; set; }
         public string Message { get; set; }
@@ -145,7 +233,7 @@ namespace DesignPatternChallenge
         }
     }
 
-    public class PushNotification
+    public class PushNotification : INotification
     {
         public string DeviceToken { get; set; }
         public string Title { get; set; }
@@ -160,7 +248,7 @@ namespace DesignPatternChallenge
         }
     }
 
-    public class WhatsAppNotification
+    public class WhatsAppNotification : INotification
     {
         public string PhoneNumber { get; set; }
         public string Message { get; set; }
@@ -180,22 +268,31 @@ namespace DesignPatternChallenge
         {
             Console.WriteLine("=== Sistema de Notificações ===\n");
 
-            var manager = new NotificationManager();
-
             // Cliente 1 prefere Email
-            manager.SendOrderConfirmation("cliente@email.com", "12345", "email");
+            var emailOrderConfirmationCreator = new EmailOrderConfirmationNotificationCreator();
+            var emailOrderNotification = emailOrderConfirmationCreator.CreateNotification("cliente@email.com", "12345");
+            emailOrderNotification.Send();
+
             Console.WriteLine();
 
             // Cliente 2 prefere SMS
-            manager.SendOrderConfirmation("+5511999999999", "12346", "sms");
+            var smsOrderConfirmationCreator = new SmsOrderConfirmationNotificationCreator();
+            var smsOrderNotification = smsOrderConfirmationCreator.CreateNotification("+5511999999999", "12346");
+            smsOrderNotification.Send();
+
             Console.WriteLine();
 
             // Cliente 3 prefere Push
-            manager.SendShippingUpdate("device-token-abc123", "BR123456789", "push");
+            var pushShippingUpdateCreator = new PushShippingUpdateNotificationCreator();
+            var pushShippingNotification = pushShippingUpdateCreator.CreateNotification("device-token-abc123", "BR123456789");
+            pushShippingNotification.Send();
+
             Console.WriteLine();
 
             // Cliente 4 prefere WhatsApp
-            manager.SendPaymentReminder("+5511888888888", 150.00m, "whatsapp");
+            var whatsappPaymentReminderCreator = new WhatsAppPaymentReminderNotificationCreator();
+            var whatsappPaymentNotification = whatsappPaymentReminderCreator.CreateNotification("+5511888888888", 150.00m);
+            whatsappPaymentNotification.Send();
 
             // Perguntas para reflexão:
             // - Como adicionar novos tipos de notificação (Telegram, Slack) sem modificar NotificationManager?
